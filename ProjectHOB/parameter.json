@@ -1,0 +1,5 @@
+﻿{
+  "MainUrl": "",
+  "ListQuerySelector": "ul.chapter-list>li>a",
+  "ContextQuerySelector": "div.content"
+}
