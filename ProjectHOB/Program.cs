@@ -27,14 +27,14 @@ namespace ProjectHOB
 
             if (contents is null || contents.Any() is false)
             {
-                Console.WriteLine("無法取得網頁內文，即將退出");
+                Console.WriteLine("無法取得網頁內文，即將退出。");
                 return;
             }
 
             Console.WriteLine("網頁內文已取得。開始轉換格式…");
 
             var generator = new EPubGenerator();
-            generator.GenerateEpub(contents);
+            await generator.GenerateEpub(contents);
 
             Console.WriteLine("作業已完成。");
             Console.ReadLine();

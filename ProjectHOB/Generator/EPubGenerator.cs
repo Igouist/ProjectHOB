@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Management.Automation;
+using System.Threading.Tasks;
 
 namespace ProjectHOB.Generator
 {
@@ -21,19 +22,19 @@ namespace ProjectHOB.Generator
         /// </summary>
         /// <param name="contents">文件章節列表</param>
         /// <returns></returns>
-        public void GenerateEpub(IEnumerable<ChapterContent> contents)
+        public async Task GenerateEpub(IEnumerable<ChapterContent> contents)
         {
             // 1. 重置工作目錄
             this.InitDir(this._path);
-            Console.WriteLine("輸出目錄已初始化");
+            Console.WriteLine("輸出目錄已初始化。");
 
             // 2. 將各章節寫入 html
-            this.CreateHtmlFile(this._path, contents);
+            await this.CreateHtmlFile(this._path, contents);
             Console.WriteLine("寫入已完成。準備開始轉換…");
 
             // 3. 執行 pandoc 將 html 轉換為 epub
             this.ConventEpubWithPowershell(this._path, contents);
-            Console.WriteLine("轉換已完成");
+            Console.WriteLine("轉換已完成。");
         }
 
         /// <summary>
@@ -41,23 +42,22 @@ namespace ProjectHOB.Generator
         /// </summary>
         /// <param name="path">輸出資料夾路徑</param>
         /// <param name="contents">文件章節列表</param>
-        private void CreateHtmlFile(string path, IEnumerable<ChapterContent> contents)
+        private async Task CreateHtmlFile(string path, IEnumerable<ChapterContent> contents)
         {
-            foreach (var content in contents)
+            var writeTasks = contents.Select(async content =>
             {
-                //Console.WriteLine($"正在寫入：{content.ChapterName}");
-
                 using (FileStream stream = new FileStream(path + content.ChapterName + ".html", FileMode.Create))
                 {
                     var writer = new StreamWriter(stream);
 
                     // 如果沒有寫入標題的話會全部壓縮成一章造成崩潰
-                    writer.WriteLine($"<br/><h1>{content.ChapterName}</h1><br/>");
-
-                    writer.WriteLine(content.Content);
+                    await writer.WriteLineAsync($"<br/><h1>{content.ChapterName}</h1><br/>");
+                    await writer.WriteLineAsync(content.Content);
                     writer.Flush();
                 }
-            }
+            });
+
+            await Task.WhenAll(writeTasks);
         }
 
         /// <summary>
@@ -73,14 +73,13 @@ namespace ProjectHOB.Generator
             cmdComment += " pandoc -s -f html -t epub3 -o HOB.epub ";
             cmdComment += contents.Aggregate(string.Empty, (comment, content) => comment += $" {content.ChapterName}.html ");
 
-            using (var ps = PowerShell.Create())
+            using (var shell = PowerShell.Create())
             {
-                var results = ps.AddScript(cmdComment).Invoke();
-
-                foreach (var result in results)
-                {
-                    Console.Write(result.ToString());
-                }
+                shell
+                    .AddScript(cmdComment)
+                    .Invoke()
+                    .ToList()
+                    .ForEach(result => Console.Write(result.ToString()));
             }
         }
 
